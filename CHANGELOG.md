@@ -3,6 +3,15 @@
 All notable changes to `pilotfish-agy` are documented in this file.
 Versioning follows `<upstream-pilotfish-version>-agy.<port-revision>`.
 
+## [1.5.0-agy.6] - 2026-11-18
+
+### Added
+- **Project override templates (`plugin/examples/`):**
+  - `project-pilotfish.config.json`: ready-to-copy `.agents/pilotfish.config.json` template with `quotaFloorPercent: 15`, `protectModels: ["argon", "claude-opus"]`, `networkGuard`, and `autoResumeOnQuotaReset`.
+  - `swarm-hook-guard.py`: `PreToolUse` hook template enforcing explicit `model` on `swarm(action="add")` and preventing lightweight/continuous workers from exhausting scarce quotas.
+  - `README.md`: multi-account durability guidance (`Hydrogen`/`Neon` accounts vs. `3.8 Flash` + `Claude 4.6` accounts).
+- **Discoverability:** indexed `examples/` in `plugin/README.md` and `plugin/skills/pilotfish/SKILL.md`.
+
 ## [1.5.0-agy.5] - 2026-11-18
 
 ### Added
