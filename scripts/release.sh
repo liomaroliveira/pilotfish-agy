@@ -8,7 +8,7 @@ while [[ $# -gt 0 ]]; do
     --version)
       NEW_VER="${2:-}"
       if [[ -z "$NEW_VER" ]]; then
-        echo "Error: --version requires a value (e.g. 1.5.0-agy.3)" >&2
+        echo "Error: --version requires a value (e.g. 1.5.0-agy.4)" >&2
         exit 1
       fi
       printf '%s\n' "$NEW_VER" > "$ROOT_DIR/VERSION"
@@ -86,10 +86,13 @@ cat > "$RELEASE_DIR/RELEASE-NOTES.md" <<EOF
 - **Upstream base:** [Nanako0129/pilotfish](https://github.com/Nanako0129/pilotfish) \`v1.5.0\` (MIT)
 
 ## Highlights in v${VERSION}
-- **Live model + thinking + quota discovery** via \`swarm(action="models", all=true)\` (adapts automatically to Plus, Pro, Flash-only, Gemini 4 Hydrogen/Argon, Claude 4.6, GPT-OSS, etc.).
-- **Configurable Hybrid mode** (\`hybrid\` default | \`subagent\` | \`swarm\`), **cross-pool Gemini ↔ Claude ↔ GPT routing** (default \`on\`), **configurable quota floor** (default \`10%\`, adjustable e.g. \`5%\`–\`20%\`), and **protected models** (default \`["argon"]\`) via \`config.json\` / \`.agents/pilotfish.config.json\` / \`scripts/configure.sh\`.
-- **Project-specialist precedence:** workspace domain agents (e.g. \`vega-*\` in \`firetv-dev\`) beat generic \`pf-*\` roles for domain/MCP work; \`pf-*\` act as complementary governance, verification, and fallback roles.
-- **Explicit Antigravity ecosystem integration:** composes with native subagents (\`research\`, \`browser\`, \`image-generator\`), \`run_workflow\`, \`swarm\`, \`ask_question\`, \`schedule\`, MCP servers, global/workspace skills, plugins, and slash commands.
+- **Deterministic \`PreToolUse\` Safety Guard (\`hooks.json\` + \`hooks/safety-guard.py\`):**
+  - Hard-blocks (\`deny\`) hardcoded API keys/private keys in \`write_file\` / \`edit_file\`, secret egress in \`search_web\`, and catastrophic destructive commands (\`rm -rf /\`, \`mkfs\`, raw \`dd\`).
+  - Forces explicit user confirmation (\`force_ask\`) before accessing sensitive credential files (\`.env\`, \`*.pem\`, \`*.key\`, \`~/.ssh/id_*\`, \`config.local.ts\`, \`*.m3u*\`) or running high-risk destructive commands (\`git push --force\`, \`git reset --hard\`, \`DROP TABLE\`/\`TRUNCATE\`, broad \`rm -rf\`).
+  - Configurable via \`safetyGuard.enabled\` in \`config.json\` / \`.agents/pilotfish.config.json\` / \`scripts/configure.sh --safety-guard on|off\`.
+- **Long-Run Quota Exhaustion Auto-Checkpoint + Auto-Resume (\`autoResumeOnQuotaReset: true\`):**
+  - When all eligible pools hit \`<= quotaFloorPercent\` during long runs, leaves \`swarm\` workers safely in \`waiting\` (zero cost), saves \`pilotfish-checkpoint.md\`, and schedules automatic wakeup via \`schedule(DurationSeconds=quota_resets + 60)\`.
+- **Includes all \`v1.5.0-agy.2\` features:** live \`swarm(action="models", all=true)\` discovery, adaptive 3-tier grouping, configurable Hybrid Gemini ↔ Claude ↔ GPT cross-pool routing, project-specialist precedence, and full Antigravity native ecosystem integration.
 
 ## Artifacts
 

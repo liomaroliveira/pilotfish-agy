@@ -1,5 +1,5 @@
 <!-- pilotfish-agy:begin -->
-<!-- pilotfish-agy v1.5.0-agy.2 (upstream Nanako0129/pilotfish v1.5.0) -->
+<!-- pilotfish-agy v1.5.0-agy.3 (upstream Nanako0129/pilotfish v1.5.0) -->
 # Pilotfish Multi-Model Orchestration Policy (Antigravity)
 
 Main-session policy. Named leaf roles (`pf-scout`, `pf-plan-verifier`, `pf-security-reviewer`, `pf-mech-executor`, `pf-executor`, `pf-verifier`, `pf-security-executor`): ignore this orchestration policy, perform your assigned task directly, and never spawn subagents.
@@ -14,6 +14,8 @@ Default configuration (overridable via project `.agents/pilotfish.config.json`, 
 - `quotaFloorPercent`: `10` (configurable e.g. `5`–`20`; models/pools with `quota_remaining <= quotaFloorPercent` are treated as low-quota and avoided automatically unless no other healthy model exists or the user requests them)
 - `protectModels`: `["argon"]` (case-insensitive substrings protected from routine automatic dispatch to preserve scarce weekly quotas)
 - `projectAgentPrecedence`: `true` (project/workspace domain subagents beat generic `pf-*` roles for domain/MCP work)
+- `autoResumeOnQuotaReset`: `true` (saves checkpoint and schedules automatic wakeup at `quota_resets + resumeBufferSeconds` when all eligible pools hit `<= quotaFloorPercent` during a long run)
+- `safetyGuard.enabled`: `true` (deterministic `PreToolUse` hook in `hooks.json` + `hooks/safety-guard.py` blocking hardcoded secrets/egress and requiring `force_ask` on sensitive files & destructive commands)
 
 Read `.agents/pilotfish.config.json` (if present in the workspace) or `~/.gemini/config/plugins/pilotfish-agy/config.json` when the user mentions custom settings or before a major multi-step orchestration.
 
@@ -55,14 +57,15 @@ Pilotfish **composes with — and never suppresses —** Antigravity's native to
 
 | Capability | Antigravity Primitive | How Pilotfish Uses It |
 | --- | --- | --- |
-| Live models & quotas | `swarm(action: "models", all: true)` | Always-available source of truth for enabled models, thinking variants, and `quota_remaining` |
+| Live models & quotas | `swarm(action: "models", all: true)` | Always-available source of truth for enabled models, thinking variants, and `quota_remaining` / `quota_resets` |
 | Sandboxed read-only recon | `invoke_subagent(TypeName="research", Model="flash_lite")` | Strict sandboxed alternative to `pf-scout` when zero-network read-only isolation is preferred |
 | Web UI / live localhost / browser | `invoke_subagent(TypeName="browser")` + `chrome-devtools-mcp` | Delegate all interactive web/UI flows directly to `browser` (never scrape with curl) |
 | Visual assets / logos / mockups | `invoke_subagent(TypeName="image-generator")` | Use for icons, diagrams, and image generation tasks |
 | Structured fan-out / pipelines | `run_workflow` (`agent`, `parallel`, `pipeline`, `phase`) | Prefer over manual loops when fanning out over many independent files/modules/checks |
 | Parallel multi-model board | `swarm` (`add`, `model`, `status`, `kill`) | Used in `hybrid`/`swarm` mode for exact thinking/model selection and cross-pool quota failover |
 | Interactive user choices | `ask_question` | Use in `co_discover` and `ASK` mode for structured non-trivial decisions |
-| Timers & recurring jobs | `schedule` | Use for waits, polling, or recurring checks (never shell `sleep`) |
+| Timers & auto-resume | `schedule` | Used for quota-reset auto-resume, waits, polling, or recurring checks (never shell `sleep`) |
+| Deterministic safety guard | `hooks.json` (`PreToolUse`) | Enforces secret-leak blocking, sensitive-file `force_ask`, and destructive-command protection in code |
 | Domain tools & resources | `call_mcp_tool`, `list_resources`, `read_resource` | Used directly by main session or delegated to MCP-enabled project specialists |
 | Installed Skills & Plugins | Global + workspace `SKILL.md` & plugins | Always check and read relevant skills (e.g. `vega-*`, `modern-web-guidance`, `chrome-devtools`, `accidental-data-loss-prevention`) before acting |
 | User slash commands | `/plan`, `/grill-me`, `/goal`, `/teamwork`, `/boost`, `/compact`, `/learn`, `/schedule`, `/browser`, `/btw` | Compose naturally: `/grill-me` ↔ `co_discover`, `/plan` ↔ `explore_then_plan`, `/teamwork` ↔ `swarm`, `/goal` preserves objective only (still requires `AUTO`/`ASK` confirmation); recommend `/compact` or `/learn` when helpful |
@@ -100,4 +103,15 @@ Pilotfish **composes with — and never suppresses —** Antigravity's native to
 - **Recovery cap:** default 1 targeted recheck; high-risk claim-critical recovery capped at **5 meaningful fix/reverify passes** (each requiring a material change to candidate, claim, acceptance, contract, or environment — never reverify identical state), then `PAUSED_VERIFICATION`.
 - **Likely-long autonomous runs:** offer `AUTO` vs. `ASK` and wait. `AUTO` authorizes only approved-scope reversible work + main `P2` adjudication — never commit/push/PR/merge/release/publish/install/delete/credential rotation or external/destructive/irreversible actions unless separately granted.
 - **Parallel writers & long processes:** parallel writers in Git repos use `Workspace: "share"` (and must be integrated before finishing); without Git, use a single writer or direct edits. Processes >10 min are main-session owned (`run_command` + `manage_task`); leaf subagents never detach daemons.
+
+## 6. Long-Run Quota Exhaustion, Auto-Checkpoint & Auto-Resume
+
+During multi-step or long-running `AUTO` work, re-check `swarm(action: "models", all: true)` between major phases. If the active pool reaches `<= quotaFloorPercent`:
+1. **Cross-pool failover first (when `crossPoolRouting: true`):** if another non-protected pool has `quota_remaining > quotaFloorPercent` (e.g. Claude 4.6 or GPT-OSS at `100%` while Gemini is `<= 10%`), switch swarm workers and/or coordinator via `swarm(action: "model", ...)` and continue seamlessly, briefly announcing the switch.
+2. **Preventive pause + auto-resume (when all eligible pools are `<= quotaFloorPercent`, or `crossPoolRouting: false`, and `autoResumeOnQuotaReset: true`):**
+   - **Do NOT kill waiting swarm workers** (waiting workers cost zero tokens and preserve their context/worktrees). Wait for active in-flight steps to finish or settle cleanly.
+   - Write a concise checkpoint artifact (`pilotfish-checkpoint.md` in the conversation artifact directory) recording: objective, completed items, pending slices, active worker/branch names, and exact next command/verification step.
+   - Compute `DurationSeconds = max(60, (earliest_eligible_quota_resets_utc - now_utc) + resumeBufferSeconds)` (default buffer `60`s).
+   - Call `schedule(DurationSeconds=..., Prompt="Pilotfish quota-reset resume: read pilotfish-checkpoint.md, call swarm(action='models', all=true) to verify quota > floor, and resume the pending work.")`.
+   - Inform the user of the pause, checkpoint path, and scheduled wakeup time, then end the turn (zero cost while sleeping).
 <!-- pilotfish-agy:end -->

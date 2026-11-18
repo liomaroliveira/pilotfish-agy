@@ -10,7 +10,10 @@ MODE=""
 CROSS_POOL=""
 QUOTA_FLOOR=""
 PROTECT_MODELS=""
+PROTECT_MODELS_SET=0
 PROJECT_PRECEDENCE=""
+AUTO_RESUME=""
+SAFETY_GUARD=""
 SHOW_ONLY=0
 RESET=0
 
@@ -32,12 +35,14 @@ Options:
   --quota-floor <0-90>            Minimum remaining quota % before protecting a pool/model (default: 10)
   --protect-models <csv>          Comma-separated model substrings to protect (default: argon; use "" to clear)
   --project-precedence <on|off>   Project domain subagents beat generic pf-* roles (default: on)
+  --auto-resume <on|off>          Auto-checkpoint + schedule wakeup at quota reset (default: on)
+  --safety-guard <on|off>         Enable/disable deterministic PreToolUse safety guard hook (default: on)
   --show                          Print current effective config and exit
   --reset                         Restore default config values
   -h, --help                      Show this help message
 
 Examples:
-  configure.sh --mode hybrid --cross-pool on --quota-floor 10
+  configure.sh --mode hybrid --cross-pool on --quota-floor 10 --auto-resume on --safety-guard on
   configure.sh --project /path/to/repo --mode subagent --quota-floor 5 --cross-pool off
   configure.sh --global --protect-models "argon,carbon" --quota-floor 5
 EOF
@@ -76,10 +81,19 @@ while [[ $# -gt 0 ]]; do
       ;;
     --protect-models)
       PROTECT_MODELS="${2:-}"
+      PROTECT_MODELS_SET=1
       shift 2
       ;;
     --project-precedence)
       PROJECT_PRECEDENCE="${2:-}"
+      shift 2
+      ;;
+    --auto-resume)
+      AUTO_RESUME="${2:-}"
+      shift 2
+      ;;
+    --safety-guard)
+      SAFETY_GUARD="${2:-}"
       shift 2
       ;;
     --show)
@@ -133,12 +147,15 @@ if [[ "$SHOW_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-python3 - "$CONFIG_PATH" "$DEFAULT_CONFIG" "$RESET" "$MODE" "$CROSS_POOL" "$QUOTA_FLOOR" "$PROTECT_MODELS" "$PROJECT_PRECEDENCE" <<'PY'
+python3 - "$CONFIG_PATH" "$DEFAULT_CONFIG" "$RESET" "$MODE" "$CROSS_POOL" "$QUOTA_FLOOR" "$PROTECT_MODELS_SET" "$PROTECT_MODELS" "$PROJECT_PRECEDENCE" "$AUTO_RESUME" "$SAFETY_GUARD" <<'PY'
 import json
 import os
 import sys
 
-config_path, default_path, reset_s, mode, cross_pool, quota_floor, protect_models, proj_prec = sys.argv[1:9]
+(
+    config_path, default_path, reset_s, mode, cross_pool, quota_floor,
+    protect_set, protect_models, proj_prec, auto_resume, safety_guard
+) = sys.argv[1:12]
 reset = reset_s == "1"
 
 with open(default_path, "r", encoding="utf-8") as f:
@@ -175,12 +192,18 @@ if quota_floor:
         raise SystemExit(f"Error: --quota-floor must be between 0 and 90 (got {qf})")
     cfg["quotaFloorPercent"] = qf
 
-if protect_models or "--protect-models" in os.environ.get("PF_FLAGS", ""):
-    items = [s.strip() for s in protect_models.split(",") if s.strip()]
-    cfg["protectModels"] = items
+if protect_set == "1":
+    cfg["protectModels"] = [s.strip() for s in protect_models.split(",") if s.strip()]
 
 if proj_prec:
     cfg["projectAgentPrecedence"] = parse_bool(proj_prec, "--project-precedence")
+
+if auto_resume:
+    cfg["autoResumeOnQuotaReset"] = parse_bool(auto_resume, "--auto-resume")
+
+if safety_guard:
+    sg = cfg.setdefault("safetyGuard", dict(defaults["safetyGuard"]))
+    sg["enabled"] = parse_bool(safety_guard, "--safety-guard")
 
 os.makedirs(os.path.dirname(config_path), exist_ok=True)
 with open(config_path, "w", encoding="utf-8") as f:

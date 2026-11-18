@@ -51,15 +51,18 @@ mkdir -p "$BUNDLE_DIR"
 
 cp "$ROOT_DIR/plugin/plugin.json" "$BUNDLE_DIR/"
 cp "$ROOT_DIR/plugin/config.json" "$BUNDLE_DIR/"
+cp "$ROOT_DIR/plugin/hooks.json" "$BUNDLE_DIR/"
 cp "$ROOT_DIR/plugin/README.md" "$BUNDLE_DIR/"
 cp "$ROOT_DIR/plugin/LICENSE" "$BUNDLE_DIR/"
 cp "$ROOT_DIR/plugin/ATTRIBUTION.md" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/assets" "$BUNDLE_DIR/"
+cp -R "$ROOT_DIR/plugin/hooks" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/rules" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/skills" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/agents" "$BUNDLE_DIR/"
 
-find "$BUNDLE_DIR" \( -name '.DS_Store' -o -name 'Thumbs.db' -o -name '*.tmp' \) -delete
+chmod +x "$BUNDLE_DIR/hooks/safety-guard.py"
+find "$BUNDLE_DIR" \( -name '.DS_Store' -o -name 'Thumbs.db' -o -name '*.tmp' -o -name '__pycache__' \) -exec rm -rf {} +
 
 echo "==> Validating built bundle..."
 bash "$ROOT_DIR/scripts/validate.sh" "$BUNDLE_DIR"

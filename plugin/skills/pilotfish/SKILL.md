@@ -5,13 +5,14 @@ description: >-
   models, thinking variants, and quotas via swarm(action="models", all=true),
   group available models into 3 adaptive Demand Tiers (hybrid Gemini/Claude/GPT
   cross-pool routing with configurable quota floor), prioritize project
-  specialists, leverage all native Antigravity tools/skills/MCPs, and enforce
+  specialists, auto-checkpoint and auto-resume via schedule on quota reset,
+  enforce deterministic PreToolUse safety checks, and guard quality with
   pre-approval plan review and fresh-context verification.
 ---
 
 # Pilotfish Orchestration Playbook (Antigravity)
 
-Use this skill when the user explicitly asks to "use pilotfish", wants to inspect or adjust Pilotfish routing/quota settings, or wants a structured multi-model workflow with live quota awareness.
+Use this skill when the user explicitly asks to "use pilotfish", wants to inspect or adjust Pilotfish routing/quota/safety settings, or wants a structured multi-model workflow with live quota awareness and auto-resume.
 
 ## Step 1: Load Config & Live Quota Inventory
 
@@ -21,6 +22,8 @@ Use this skill when the user explicitly asks to "use pilotfish", wants to inspec
    - `quotaFloorPercent`: `10` *(default; configurable e.g. `5`, `10`, `15`, `20`)*
    - `protectModels`: `["argon"]` *(default; protected from routine dispatch)*
    - `projectAgentPrecedence`: `true` *(default)*
+   - `autoResumeOnQuotaReset`: `true` *(default; checkpoint + `schedule` wakeup at `quota_resets + 60s`)*
+   - `safetyGuard.enabled`: `true` *(default; deterministic `PreToolUse` hook)*
 2. Call `swarm(action: "models", all: true)` once (zero worker cost) to get:
    - Enabled model IDs including thinking variants (`-low`, `-medium`, `-high`, `-extra`, `-thinking`)
    - Live `quota_remaining` and `quota_resets` for every model
@@ -39,9 +42,9 @@ Filter out models with `quota_remaining <= quotaFloorPercent` and protect `prote
 2. **Risk Triggers:** explicit review request, security/trust boundaries, destructive/irreversible/external mutation, schema/migration, release/packaging, material cross-component acceptance.
 3. **Check Project Specialists & Installed Skills FIRST:**
    - If the workspace has domain subagents (e.g., `vega-*`, `iptv-*` in `firetv-dev`) or domain skills/MCPs, prioritize them for domain work while keeping Pilotfish gates.
-   - Use native Antigravity tools where they excel: `browser` for live web UI, `research` for strict sandboxed read-only recon, `image-generator` for visual assets, `run_workflow` for multi-item fan-out, `schedule` for timers/crons, `ask_question` for design alignment.
+   - Use native Antigravity tools where they excel: `browser` for live web UI, `research` for strict sandboxed read-only recon, `image-generator` for visual assets, `run_workflow` for multi-item fan-out, `schedule` for timers/auto-resume, `ask_question` for design alignment.
 
-## Step 4: Execute According to `routingMode`
+## Step 4: Execute According to `routingMode` & Guard Quota
 
 | Phase | Preferred Role | `invoke_subagent` Model Enum (quota-safe) | `swarm` Model ID (when exact thinking / cross-pool needed) |
 | --- | --- | --- | --- |
@@ -53,8 +56,9 @@ Filter out models with `quota_remaining <= quotaFloorPercent` and protect `prote
 | Security implementation | `pf-security-executor` | `"inherit"` (or `"pro"` only if safe) | Tier 3 exact ID |
 | Fresh verification | `pf-verifier` | `"inherit"` (or `"pro"` only if safe) | Tier 3 exact ID |
 
-- In **`hybrid`** mode (default): use `invoke_subagent` for project specialists and capability-bounded `pf-*` roles; switch to `swarm` with exact Tier 1/2/3 IDs when cross-pool balancing (`Gemini ↔ Claude`) or exact thinking-level separation (`Low`/`Medium`/`High`/`Extra`) is needed, or when active pool quota hits `<= quotaFloorPercent`.
-- Always state chosen models + live quota snapshot briefly when switching pools/models.
+- **Long-run quota protection:** between major phases, re-check `swarm(action: "models", all: true)`. If active pool hits `<= quotaFloorPercent`:
+  1. Fail over to another healthy pool (`swarm(action: "model", ...)`) when `crossPoolRouting: true`.
+  2. Otherwise (when `autoResumeOnQuotaReset: true`), leave waiting swarm workers alive (never `kill`), save `pilotfish-checkpoint.md`, call `schedule(DurationSeconds=<seconds until quota_resets + 60>, Prompt=...)`, report the pause + wakeup time, and end the turn.
 
 ## Step 5: Verify & Synthesize
 

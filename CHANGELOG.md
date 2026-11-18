@@ -3,6 +3,26 @@
 All notable changes to `pilotfish-agy` are documented in this file.
 Versioning follows `<upstream-pilotfish-version>-agy.<port-revision>`.
 
+## [1.5.0-agy.3] - 2026-11-17
+
+### Added
+- **Deterministic safety guard hook (`hooks.json` + `hooks/safety-guard.py`):**
+  - `deny` automático para chaves privadas/tokens hardcoded em writes e egress de secrets via `search_web`.
+  - `deny` para comandos destrutivos catastróficos (`rm -rf /`, `mkfs`, `dd` em block device, fork bomb).
+  - `force_ask` para arquivos sensíveis (`.env`, `*.pem`, `*.key`, `~/.ssh/id_*`, `config.local.ts`, `*.m3u*`).
+  - `force_ask` para comandos de alto risco (`git push --force`, `git reset --hard`, `DROP TABLE`, `TRUNCATE`, `DELETE` sem WHERE, `rm -rf` amplo fora de build/tmp).
+  - Pass-through (`{}`) para tudo mais — nunca enfraquece as permissões nativas do Antigravity.
+  - Respeita override de projeto via `.agents/pilotfish.config.json` → `safetyGuard.enabled: false`.
+  - Ignora placeholders (`example`, `dummy`, `your_`, etc.) e arquivos de teste/template.
+- **Auto-checkpoint & auto-resume em exaustão de cota:**
+  - Failover cross-pool automático (`crossPoolRouting: true`) antes de pausar.
+  - Checkpoint artifact com estado, próximo passo e cota restante.
+  - Timer `schedule(DurationSeconds=...)` para auto-wakeup quando a cota resetar.
+  - Configurável via `autoResumeOnQuotaReset` e `resumeBufferSeconds` em `config.json`.
+- **Novos campos em `config.json`:** `autoResumeOnQuotaReset`, `resumeBufferSeconds`, `safetyGuard` (com `enabled`, `blockHardcodedSecrets`, `blockSecretWebEgress`, `protectSensitiveFiles`, `confirmDestructiveCommands`).
+- **Script `configure.sh`:** flags `--auto-resume` e `--safety-guard` adicionadas.
+- **Testes expandidos:** 6 estágios, com assertions determinísticos para o safety-guard.py.
+
 ## [1.5.0-agy.2] - 2026-11-17
 
 ### Added

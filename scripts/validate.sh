@@ -17,6 +17,7 @@ if [[ -z "$EXPECTED_VERSION" ]]; then
 fi
 
 python3 - "$PLUGIN_DIR" "$EXPECTED_VERSION" <<'PY'
+import ast
 import json
 import os
 import re
@@ -97,8 +98,45 @@ else:
         err("config.json protectModels must be a list of strings")
     if not isinstance(cfg.get("projectAgentPrecedence"), bool):
         err("config.json projectAgentPrecedence must be boolean")
+    if not isinstance(cfg.get("autoResumeOnQuotaReset"), bool):
+        err("config.json autoResumeOnQuotaReset must be boolean")
+    rb = cfg.get("resumeBufferSeconds")
+    if not isinstance(rb, int) or isinstance(rb, bool) or not (0 <= rb <= 600):
+        err(f"config.json resumeBufferSeconds must be integer 0..600, got {rb!r}")
+    sg = cfg.get("safetyGuard")
+    if not isinstance(sg, dict):
+        err("config.json safetyGuard must be an object")
+    else:
+        for flag in ("enabled", "blockHardcodedSecrets", "blockSecretWebEgress", "protectSensitiveFiles", "confirmDestructiveCommands"):
+            if not isinstance(sg.get(flag), bool):
+                err(f"config.json safetyGuard.{flag} must be boolean")
 
-# 3. Rule validation (plain markdown, no frontmatter, <= 24KB)
+# 3. Hooks validation (must live at plugin root: hooks.json + hooks/safety-guard.py)
+hooks_json_path = os.path.join(plugin_dir, "hooks.json")
+guard_script_path = os.path.join(plugin_dir, "hooks", "safety-guard.py")
+if not os.path.isfile(hooks_json_path):
+    err(f"Missing hooks.json at plugin root: {hooks_json_path}")
+else:
+    try:
+        with open(hooks_json_path, "r", encoding="utf-8") as f:
+            hooks_data = json.load(f)
+        if "pilotfish-safety-guard" not in hooks_data:
+            err("hooks.json missing 'pilotfish-safety-guard' hook entry")
+        elif "PreToolUse" not in hooks_data["pilotfish-safety-guard"]:
+            err("hooks.json 'pilotfish-safety-guard' missing PreToolUse list")
+    except Exception as e:
+        err(f"Invalid JSON in hooks.json: {e}")
+
+if not os.path.isfile(guard_script_path):
+    err(f"Missing hooks/safety-guard.py at {guard_script_path}")
+else:
+    try:
+        with open(guard_script_path, "r", encoding="utf-8") as f:
+            ast.parse(f.read(), filename=guard_script_path)
+    except SyntaxError as e:
+        err(f"Python syntax error in hooks/safety-guard.py: {e}")
+
+# 4. Rule validation (plain markdown, no frontmatter, <= 24KB)
 rule_path = os.path.join(plugin_dir, "rules", "AGENTS.md")
 if not os.path.isfile(rule_path):
     err(f"Missing rules/AGENTS.md at {rule_path}")
@@ -115,7 +153,7 @@ else:
     if expected_version not in rule_text:
         err(f"rules/AGENTS.md does not reference current version {expected_version}")
 
-# 4. Skill validation
+# 5. Skill validation
 skill_path = os.path.join(plugin_dir, "skills", "pilotfish", "SKILL.md")
 if not os.path.isfile(skill_path):
     err(f"Missing skills/pilotfish/SKILL.md at {skill_path}")
@@ -132,7 +170,7 @@ else:
         if not re.search(r"^description:\s*\S+", fm, re.MULTILINE):
             err("skills/pilotfish/SKILL.md frontmatter 'description' must be non-empty")
 
-# 5. Agents validation + capability invariants
+# 6. Agents validation + capability invariants
 expected_agents = {
     "pf-scout": {
         "required_tools": {"read_file", "run_command"},
@@ -229,5 +267,5 @@ if errors:
         print(f"  - {e}", file=sys.stderr)
     sys.exit(1)
 
-print(f"OK: {plugin_dir} passed all Antigravity plugin & Pilotfish capability checks (v{expected_version}).")
+print(f"OK: {plugin_dir} passed all Antigravity plugin, hook & Pilotfish capability checks (v{expected_version}).")
 PY

@@ -1,0 +1,16 @@
+{
+  "pilotfish-safety-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "read_file|edit_file|write_file|run_command|search_web",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ./hooks/safety-guard.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
