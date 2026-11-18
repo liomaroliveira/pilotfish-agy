@@ -5,9 +5,9 @@ description: >-
   models, thinking variants, and quotas via swarm(action="models", all=true),
   group available models into 3 adaptive Demand Tiers (hybrid Gemini/Claude/GPT
   cross-pool routing with configurable quota floor), prioritize project
-  specialists, auto-checkpoint and auto-resume via schedule on quota reset,
-  enforce deterministic PreToolUse safety checks, and guard quality with
-  pre-approval plan review and fresh-context verification.
+  specialists, auto-checkpoint and auto-resume via schedule on quota reset or
+  via local watchdog on network outage, enforce deterministic PreToolUse safety
+  checks, and guard quality with pre-approval plan review and fresh-context verification.
 ---
 
 # Pilotfish Orchestration Playbook (Antigravity)
@@ -23,6 +23,7 @@ Use this skill when the user explicitly asks to "use pilotfish", wants to inspec
    - `protectModels`: `["argon"]` *(default; protected from routine dispatch)*
    - `projectAgentPrecedence`: `true` *(default)*
    - `autoResumeOnQuotaReset`: `true` *(default; checkpoint + `schedule` wakeup at `quota_resets + 60s`)*
+   - `networkGuard.enabled`: `true` *(default; auto-pause on disconnect + reactive wakeup via `pilotfish-net-watchdog.py`)*
    - `safetyGuard.enabled`: `true` *(default; deterministic `PreToolUse` hook)*
 2. Call `swarm(action: "models", all: true)` once (zero worker cost) to get:
    - Enabled model IDs including thinking variants (`-low`, `-medium`, `-high`, `-extra`, `-thinking`)
@@ -59,6 +60,12 @@ Filter out models with `quota_remaining <= quotaFloorPercent` and protect `prote
 - **Long-run quota protection:** between major phases, re-check `swarm(action: "models", all: true)`. If active pool hits `<= quotaFloorPercent`:
   1. Fail over to another healthy pool (`swarm(action: "model", ...)`) when `crossPoolRouting: true`.
   2. Otherwise (when `autoResumeOnQuotaReset: true`), leave waiting swarm workers alive (never `kill`), save `pilotfish-checkpoint.md`, call `schedule(DurationSeconds=<seconds until quota_resets + 60>, Prompt=...)`, report the pause + wakeup time, and end the turn.
+- **Long-run network outage protection:** on subagent timeout or network disconnect error:
+  1. Immediately probe with `pilotfish-net-watchdog.py --probe`. If offline, do NOT retry subagents or kill swarm workers.
+  2. Save `pilotfish-checkpoint.md` with status `PAUSED_NETWORK_OFFLINE`.
+  3. Spawn background watchdog: `run_command(CommandLine="python3 ~/.gemini/config/plugins/pilotfish-agy/scripts/pilotfish-net-watchdog.py --wait-for-online --checkpoint '<Artifact Directory Path>/pilotfish-checkpoint.md'", WaitMsBeforeAsync=500, toolSummary="Network watchdog waiting for reconnection")`.
+  4. End the turn immediately. When connection returns stably, watchdog exits 0, waking Antigravity up automatically to read checkpoint, notify via `tg-notify`, and resume work.
+  5. For long autonomous runs (`AUTO`), start `pilotfish-net-watchdog.py --sentinel` in background at the start of the task to guard against sudden coordinator disconnection.
 
 ## Step 5: Verify & Synthesize
 

@@ -154,7 +154,40 @@ if [[ -e "$MOCK_PROJ/.agents/plugins/pilotfish-agy" ]]; then
   exit 1
 fi
 
-echo "[6/6] Checking no Claude Code legacy paths leak into Antigravity bundle..."
+echo "[6/7] Testing pilotfish-net-watchdog.py probe and checkpoint recovery..."
+python3 - "$ROOT_DIR/dist/pilotfish-agy" "$TMP_DIR" <<'PY'
+import json, os, subprocess, sys
+
+plugin_dir, tmp_dir = sys.argv[1], sys.argv[2]
+watchdog = os.path.join(plugin_dir, "scripts", "pilotfish-net-watchdog.py")
+assert os.path.isfile(watchdog), f"Missing watchdog script at {watchdog}"
+
+# 1. Probe check
+p = subprocess.run(["python3", watchdog, "--probe"], capture_output=True, text=True)
+assert p.returncode in (0, 1), f"Unexpected probe exit code: {p.returncode}"
+probe_data = json.loads(p.stdout)
+assert "status" in probe_data, f"Invalid probe output: {probe_data}"
+
+# 2. Checkpoint recovery test
+test_cp = os.path.join(tmp_dir, "test-checkpoint.md")
+with open(test_cp, "w", encoding="utf-8") as f:
+    f.write("# Checkpoint\nstatus: PAUSED_NETWORK_OFFLINE\n")
+
+p_wait = subprocess.run(
+    ["python3", watchdog, "--wait-for-online", "--consecutive", "2", "--interval", "0.5", "--checkpoint", test_cp, "--no-notify"],
+    capture_output=True,
+    text=True,
+    check=True,
+)
+res = json.loads(p_wait.stdout)
+assert res.get("event") == "INTERNET_RESTORED", res
+with open(test_cp, "r", encoding="utf-8") as f:
+    cp_content = f.read()
+assert "NETWORK_RESTORED_PENDING_RESUME" in cp_content, cp_content
+print("  pilotfish-net-watchdog.py assertions passed.")
+PY
+
+echo "[7/7] Checking no Claude Code legacy paths leak into Antigravity bundle..."
 if grep -rnE 'CLAUDE_PLUGIN_ROOT|CLAUDE_CONFIG_DIR|CLAUDE_CODE_SUBAGENT_MODEL|NotebookEdit' "$ROOT_DIR/dist/pilotfish-agy/"; then
   echo "FAIL: Found legacy Claude Code references in built Antigravity bundle" >&2
   exit 1

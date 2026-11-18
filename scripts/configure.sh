@@ -13,6 +13,7 @@ PROTECT_MODELS=""
 PROTECT_MODELS_SET=0
 PROJECT_PRECEDENCE=""
 AUTO_RESUME=""
+NETWORK_GUARD=""
 SAFETY_GUARD=""
 SHOW_ONLY=0
 RESET=0
@@ -36,6 +37,7 @@ Options:
   --protect-models <csv>          Comma-separated model substrings to protect (default: argon; use "" to clear)
   --project-precedence <on|off>   Project domain subagents beat generic pf-* roles (default: on)
   --auto-resume <on|off>          Auto-checkpoint + schedule wakeup at quota reset (default: on)
+  --network-guard <on|off>        Network outage watchdog & reactive auto-resume (default: on)
   --safety-guard <on|off>         Enable/disable deterministic PreToolUse safety guard hook (default: on)
   --show                          Print current effective config and exit
   --reset                         Restore default config values
@@ -90,6 +92,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --auto-resume)
       AUTO_RESUME="${2:-}"
+      shift 2
+      ;;
+    --network-guard)
+      NETWORK_GUARD="${2:-}"
       shift 2
       ;;
     --safety-guard)
@@ -147,15 +153,15 @@ if [[ "$SHOW_ONLY" -eq 1 ]]; then
   exit 0
 fi
 
-python3 - "$CONFIG_PATH" "$DEFAULT_CONFIG" "$RESET" "$MODE" "$CROSS_POOL" "$QUOTA_FLOOR" "$PROTECT_MODELS_SET" "$PROTECT_MODELS" "$PROJECT_PRECEDENCE" "$AUTO_RESUME" "$SAFETY_GUARD" <<'PY'
+python3 - "$CONFIG_PATH" "$DEFAULT_CONFIG" "$RESET" "$MODE" "$CROSS_POOL" "$QUOTA_FLOOR" "$PROTECT_MODELS_SET" "$PROTECT_MODELS" "$PROJECT_PRECEDENCE" "$AUTO_RESUME" "$NETWORK_GUARD" "$SAFETY_GUARD" <<'PY'
 import json
 import os
 import sys
 
 (
     config_path, default_path, reset_s, mode, cross_pool, quota_floor,
-    protect_set, protect_models, proj_prec, auto_resume, safety_guard
-) = sys.argv[1:12]
+    protect_set, protect_models, proj_prec, auto_resume, network_guard, safety_guard
+) = sys.argv[1:13]
 reset = reset_s == "1"
 
 with open(default_path, "r", encoding="utf-8") as f:
@@ -200,6 +206,10 @@ if proj_prec:
 
 if auto_resume:
     cfg["autoResumeOnQuotaReset"] = parse_bool(auto_resume, "--auto-resume")
+
+if network_guard:
+    ng = cfg.setdefault("networkGuard", dict(defaults.get("networkGuard", {})))
+    ng["enabled"] = parse_bool(network_guard, "--network-guard")
 
 if safety_guard:
     sg = cfg.setdefault("safetyGuard", dict(defaults["safetyGuard"]))

@@ -60,6 +60,10 @@ cp -R "$ROOT_DIR/plugin/hooks" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/rules" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/skills" "$BUNDLE_DIR/"
 cp -R "$ROOT_DIR/plugin/agents" "$BUNDLE_DIR/"
+if [[ -d "$ROOT_DIR/plugin/scripts" ]]; then
+  cp -R "$ROOT_DIR/plugin/scripts" "$BUNDLE_DIR/"
+  chmod +x "$BUNDLE_DIR"/scripts/*.py 2>/dev/null || true
+fi
 
 chmod +x "$BUNDLE_DIR/hooks/safety-guard.py"
 find "$BUNDLE_DIR" \( -name '.DS_Store' -o -name 'Thumbs.db' -o -name '*.tmp' -o -name '__pycache__' \) -exec rm -rf {} +

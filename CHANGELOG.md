@@ -3,6 +3,23 @@
 All notable changes to `pilotfish-agy` are documented in this file.
 Versioning follows `<upstream-pilotfish-version>-agy.<port-revision>`.
 
+## [1.5.0-agy.5] - 2026-11-18
+
+### Added
+- **Network Outage Protection, Auto-Checkpoint & Auto-Resume (`scripts/pilotfish-net-watchdog.py`):**
+  - Ultra-fast zero-token connection probe (`--probe`, <50ms) to classify tool/subagent timeouts and network failures vs real code bugs.
+  - Subagent and worker shielding: freezes state without burning retries or killing swarm workers when connectivity drops.
+  - Auto-checkpoint artifact (`pilotfish-checkpoint.md`) with `status: PAUSED_NETWORK_OFFLINE`.
+  - Local background watchdog (`--wait-for-online`) with hysteresis (3 consecutive stable probes) that exits cleanly when connection returns, triggering Antigravity's reactive task wakeup without wasting tokens.
+  - Passive background sentinel (`--sentinel`) for long autonomous runs (`AUTO` mode), ensuring Antigravity reactively revives even if an in-flight API call dies during a sudden network drop.
+  - Integration with `tg-notify` to alert the user on mobile upon connection restoration.
+- **New configuration section `networkGuard` in `config.json`:**
+  - `enabled`, `probeTimeoutSeconds`, `consecutiveSuccessesRequired`, `probeIntervalSeconds`, `sentinelEnabled`, and `endpoints`.
+- **Policy Section 7 in `rules/AGENTS.md` and updated `skills/pilotfish/SKILL.md`:**
+  - Formalized pre-flight triage, subagent shielding, checkpoint contract, and sentinel lifecycle.
+- **CLI flag `--network-guard <on|off>` in `scripts/configure.sh`.**
+- **Automated tests in `tests/test-plugin.sh` and validator guards in `scripts/validate.sh`.**
+
 ## [1.5.0-agy.4] - 2026-11-18
 
 ### Fixed

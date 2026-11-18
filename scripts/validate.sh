@@ -110,6 +110,24 @@ else:
         for flag in ("enabled", "blockHardcodedSecrets", "blockSecretWebEgress", "protectSensitiveFiles", "confirmDestructiveCommands"):
             if not isinstance(sg.get(flag), bool):
                 err(f"config.json safetyGuard.{flag} must be boolean")
+    ng = cfg.get("networkGuard")
+    if ng is not None:
+        if not isinstance(ng, dict):
+            err("config.json networkGuard must be an object")
+        else:
+            if not isinstance(ng.get("enabled"), bool):
+                err("config.json networkGuard.enabled must be boolean")
+            if not isinstance(ng.get("sentinelEnabled"), bool):
+                err("config.json networkGuard.sentinelEnabled must be boolean")
+            cs = ng.get("consecutiveSuccessesRequired")
+            if not isinstance(cs, int) or isinstance(cs, bool) or not (1 <= cs <= 20):
+                err(f"config.json networkGuard.consecutiveSuccessesRequired must be int 1..20, got {cs!r}")
+            pi = ng.get("probeIntervalSeconds")
+            if not isinstance(pi, (int, float)) or isinstance(pi, bool) or not (0.5 <= pi <= 120):
+                err(f"config.json networkGuard.probeIntervalSeconds must be number 0.5..120, got {pi!r}")
+            eps = ng.get("endpoints")
+            if not isinstance(eps, list) or not all(isinstance(x, str) and ":" in x for x in eps):
+                err("config.json networkGuard.endpoints must be a list of 'host:port' strings")
 
 # 3. Hooks validation (must live at plugin root: hooks.json + hooks/safety-guard.py)
 hooks_json_path = os.path.join(plugin_dir, "hooks.json")
@@ -141,6 +159,14 @@ else:
             ast.parse(f.read(), filename=guard_script_path)
     except SyntaxError as e:
         err(f"Python syntax error in hooks/safety-guard.py: {e}")
+
+watchdog_script = os.path.join(plugin_dir, "scripts", "pilotfish-net-watchdog.py")
+if os.path.isfile(watchdog_script):
+    try:
+        with open(watchdog_script, "r", encoding="utf-8") as f:
+            ast.parse(f.read(), filename=watchdog_script)
+    except SyntaxError as e:
+        err(f"Python syntax error in scripts/pilotfish-net-watchdog.py: {e}")
 
 # 4. Rule validation (plain markdown, no frontmatter, <= 24KB)
 rule_path = os.path.join(plugin_dir, "rules", "AGENTS.md")

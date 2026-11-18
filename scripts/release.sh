@@ -86,11 +86,22 @@ cat > "$RELEASE_DIR/RELEASE-NOTES.md" <<EOF
 - **Upstream base:** [Nanako0129/pilotfish](https://github.com/Nanako0129/pilotfish) \`v1.5.0\` (MIT)
 
 ## Highlights in v${VERSION}
-- **Critical \`PreToolUse\` Safety Guard Fixes (regression-tested):**
-  - **Portable + absolute hook path resolution:** \`plugin/hooks.json\` replaces \`./hooks/safety-guard.py\` with \`\${ANTIGRAVITY_PLUGIN_ROOT:-\${PLUGIN_ROOT:-\$HOME/.gemini/config/plugins/pilotfish-agy}}/hooks/safety-guard.py\`, and \`scripts/install.sh\` writes the exact absolute path (\`\$TARGET_DIR/hooks/safety-guard.py\`) on both \`--global\` and \`--project\` installs so hooks work under any workspace CWD.
-  - **Antigravity \`PreToolUse\` pass-through protocol fix:** \`hooks/safety-guard.py\` now returns **empty stdout (0 bytes, exit 0)** on normal calls (instead of \`{}\`, which Antigravity treated as a silent \`deny\`).
-  - **Regression coverage:** \`validate.sh\` rejects relative \`./hooks/\` commands and \`tests/test-plugin.sh\` executes the installed \`hooks.json\` command from an unrelated CWD and asserts literal empty stdout on every pass-through case.
-- **Includes all \`v1.5.0-agy.3\` & \`v1.5.0-agy.2\` features:** deterministic \`PreToolUse\` safety guard (\`deny\` on hardcoded secrets/egress/catastrophic shell, \`force_ask\` on sensitive files & destructive commands), long-run quota auto-checkpoint + auto-resume via \`schedule\`, live \`swarm(action="models", all=true)\` discovery, adaptive 3-tier grouping, configurable Hybrid Gemini ↔ Claude ↔ GPT cross-pool routing, and project-specialist precedence.
+- **Network Outage Auto-Pause & Auto-Resume Sentinel (\`scripts/pilotfish-net-watchdog.py\`):**
+  - Ultra-fast zero-token connection probe (\`--probe\`, <30ms) to classify tool/subagent timeouts vs network disconnects.
+  - Subagent & Swarm shielding: prevents burning retries and preserves active worker conversations and git branch worktrees during outages.
+  - Auto-checkpoint artifact (\`pilotfish-checkpoint.md\`) with \`status: PAUSED_NETWORK_OFFLINE\`.
+  - Local background watchdog (\`--wait-for-online\`) with hysteresis (3 consecutive stable probes) that exits cleanly when connection returns, triggering Antigravity's reactive task wakeup without wasting tokens.
+  - Passive background sentinel (\`--sentinel\`) for long autonomous runs (\`AUTO\` mode), ensuring Antigravity reactively revives even if an in-flight API call dies during a sudden network drop.
+  - Integration with \`tg-notify\` to alert the user on mobile upon connection restoration.
+- **New configuration section \`networkGuard\` in \`config.json\`:**
+  - \`enabled\`, \`probeTimeoutSeconds\`, \`consecutiveSuccessesRequired\`, \`probeIntervalSeconds\`, \`sentinelEnabled\`, and \`endpoints\`.
+- **Policy Section 7 in \`rules/AGENTS.md\` and updated \`skills/pilotfish/SKILL.md\`:**
+  - Formalized pre-flight triage, subagent shielding, checkpoint contract, and sentinel lifecycle.
+- **CLI flag \`--network-guard <on|off>\` in \`scripts/configure.sh\`:**
+  - Fast toggling and inspection alongside \`--auto-resume\`, \`--safety-guard\`, and routing modes.
+- **Automated tests in \`tests/test-plugin.sh\` and validator guards in \`scripts/validate.sh\`:**
+  - 7 test stages verifying probe, checkpoint recovery, absolute hook execution, safety-guard rules, and bundle integrity.
+- **Includes all prior features:** portable \`PreToolUse\` absolute hook path, empty-stdout pass-through protocol, deterministic safety guard (\`deny\` on hardcoded secrets/egress/catastrophic shell, \`force_ask\` on sensitive files & destructive commands), long-run quota auto-checkpoint + auto-resume via \`schedule\`, live \`swarm(action="models", all=true)\` discovery, adaptive 3-tier grouping, configurable Hybrid Gemini ↔ Claude ↔ GPT cross-pool routing, and project-specialist precedence.
 
 ## Artifacts
 

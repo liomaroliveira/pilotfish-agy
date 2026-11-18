@@ -4,7 +4,7 @@ Port adaptado do [Nanako0129/pilotfish](https://github.com/Nanako0129/pilotfish)
 
 ---
 
-## Como funciona na `v1.5.0-agy.2`
+## Como funciona na `v1.5.0-agy.5`
 
 ### 1. Descoberta ao vivo de modelos, thinking e cotas
 Antes de qualquer delegação não-trivial, o Pilotfish chama `swarm(action: "models", all: true)` (custo zero) para ler em tempo real:
@@ -25,6 +25,9 @@ Com isso, ele descarta modelos abaixo do `quotaFloorPercent` (padrão `10%`), pr
 | `quotaFloorPercent` | `10` | Piso de cota restante (`0`–`90`, ex.: `5` ou `10`) abaixo do qual o modelo/pool é protegido |
 | `protectModels` | `["argon"]` | Substrings de modelos protegidos contra disparo automático rotineiro |
 | `projectAgentPrecedence` | `true` | Subagentes especialistas do projeto (ex.: `vega-*` no `firetv-dev`) têm prioridade; os `pf-*` atuam como complemento (revisão independente, busca genérica e fallback) |
+| `autoResumeOnQuotaReset` | `true` | Salva checkpoint e agenda timer (`schedule`) para auto-despertar no reset de cota |
+| `networkGuard` | `enabled: true` | Monitor de rede local zero-token (`pilotfish-net-watchdog.py`): probe ultrarrápido (<30ms), pausa segura sem queimar retries e reativação reativa automática |
+| `safetyGuard` | `enabled: true` | Hook `PreToolUse` determinístico (`deny` em secrets/destruição catastrófica, `force_ask` em arquivos sensíveis) |
 
 **Como configurar (global, por projeto ou inline no prompt):**
 
@@ -33,7 +36,7 @@ Com isso, ele descarta modelos abaixo do `quotaFloorPercent` (padrão `10%`), pr
 make config-show
 
 # Alterar configuração global (~/.gemini/config/plugins/pilotfish-agy/config.json):
-./scripts/configure.sh --global --mode hybrid --cross-pool on --quota-floor 5
+./scripts/configure.sh --global --mode hybrid --cross-pool on --quota-floor 5 --network-guard on
 
 # Criar override específico só para um projeto (<projeto>/.agents/pilotfish.config.json):
 ./scripts/configure.sh --project /caminho/do/projeto --mode subagent --quota-floor 10 --cross-pool off

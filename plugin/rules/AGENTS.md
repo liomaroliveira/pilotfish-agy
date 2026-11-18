@@ -1,5 +1,5 @@
 <!-- pilotfish-agy:begin -->
-<!-- pilotfish-agy v1.5.0-agy.4 (upstream Nanako0129/pilotfish v1.5.0) -->
+<!-- pilotfish-agy v1.5.0-agy.5 (upstream Nanako0129/pilotfish v1.5.0) -->
 # Pilotfish Multi-Model Orchestration Policy (Antigravity)
 
 Main-session policy. Named leaf roles (`pf-scout`, `pf-plan-verifier`, `pf-security-reviewer`, `pf-mech-executor`, `pf-executor`, `pf-verifier`, `pf-security-executor`): ignore this orchestration policy, perform your assigned task directly, and never spawn subagents.
@@ -15,6 +15,7 @@ Default configuration (overridable via project `.agents/pilotfish.config.json`, 
 - `protectModels`: `["argon"]` (case-insensitive substrings protected from routine automatic dispatch to preserve scarce weekly quotas)
 - `projectAgentPrecedence`: `true` (project/workspace domain subagents beat generic `pf-*` roles for domain/MCP work)
 - `autoResumeOnQuotaReset`: `true` (saves checkpoint and schedules automatic wakeup at `quota_resets + resumeBufferSeconds` when all eligible pools hit `<= quotaFloorPercent` during a long run)
+- `networkGuard.enabled`: `true` (zero-token local socket probe & sentinel via `scripts/pilotfish-net-watchdog.py`; pauses and checkpoints work on connection drop, then reactively wakes Antigravity up via background task completion on restore)
 - `safetyGuard.enabled`: `true` (deterministic `PreToolUse` hook in `hooks.json` + `hooks/safety-guard.py` blocking hardcoded secrets/egress and requiring `force_ask` on sensitive files & destructive commands)
 
 Read `.agents/pilotfish.config.json` (if present in the workspace) or `~/.gemini/config/plugins/pilotfish-agy/config.json` when the user mentions custom settings or before a major multi-step orchestration.
@@ -114,4 +115,33 @@ During multi-step or long-running `AUTO` work, re-check `swarm(action: "models",
    - Compute `DurationSeconds = max(60, (earliest_eligible_quota_resets_utc - now_utc) + resumeBufferSeconds)` (default buffer `60`s).
    - Call `schedule(DurationSeconds=..., Prompt="Pilotfish quota-reset resume: read pilotfish-checkpoint.md, call swarm(action='models', all=true) to verify quota > floor, and resume the pending work.")`.
    - Inform the user of the pause, checkpoint path, and scheduled wakeup time, then end the turn (zero cost while sleeping).
+
+## 7. Network Outage Protection, Auto-Checkpoint & Auto-Resume
+
+Unlike predictable quota exhaustion, internet disconnects are unpredictable, of unknown duration, and completely disable model API access while offline. The main session and workers follow strict network resilience discipline:
+
+1. **Fast Pre-Flight & Timeout Triage:**
+   - Before attributing a subagent error, tool timeout (`ETIMEDOUT`, `ECONNREFUSED`, `ENOTFOUND`, `FetchError`), or API failure to a code/agent bug, run `python3 ~/.gemini/config/plugins/pilotfish-agy/scripts/pilotfish-net-watchdog.py --probe` (<50ms TCP check).
+   - If offline, **never retry subagents or burn same-tier failure counts** (Escalation Rule must not trigger on infrastructure network outages).
+2. **State Freeze & Checkpoint:**
+   - **Do NOT kill waiting swarm workers** (preserves context and git branch worktrees).
+   - Write/update `pilotfish-checkpoint.md` in the conversation artifact directory:
+     - `status`: `PAUSED_NETWORK_OFFLINE`
+     - `paused_at`: UTC timestamp
+     - `current_slice`: active slice ID and pending steps
+     - `active_workers`: member names and associated worktrees
+     - `resume_action`: exact tool/subagent call to restart
+3. **Reactive Sleep via Local Watchdog (`run_command`):**
+   - Spawn the network watchdog as a background task:
+     `run_command(CommandLine="python3 ~/.gemini/config/plugins/pilotfish-agy/scripts/pilotfish-net-watchdog.py --wait-for-online --checkpoint '<Artifact Directory Path>/pilotfish-checkpoint.md'", WaitMsBeforeAsync=500, toolSummary="Network outage watchdog waiting for restoration")`
+   - End the turn immediately (call no further tools). While offline, 0 tokens are consumed and the machine uses negligible CPU.
+4. **Reactive Wakeup & Resumption:**
+   - When connectivity is stably restored (3 consecutive successful probes), `pilotfish-net-watchdog.py` exits 0.
+   - Antigravity's task completion mechanism automatically wakes up the coordinator with the task output.
+   - The coordinator reads `pilotfish-checkpoint.md`, verifies healthy models via `swarm(action: "models", all: true)`, sends `tg-notify "⚠️ <b>Pilotfish:</b> Conexão restabelecida. Retomando tarefas de onde pararam..."`, and seamlessly resumes the pending slice.
+5. **Passive Sentinel during Long Autonomous Runs (`AUTO` mode):**
+   - When initiating long multi-slice or swarm workflows, optionally detach the sentinel:
+     `run_command(CommandLine="python3 ~/.gemini/config/plugins/pilotfish-agy/scripts/pilotfish-net-watchdog.py --sentinel --checkpoint '<Artifact Directory Path>/pilotfish-checkpoint.md'", WaitMsBeforeAsync=500, toolSummary="Pilotfish network sentinel")`
+   - If an in-flight API call dies during a sudden outage while the turn is active, the background sentinel stays alive on the host. Once the connection returns, the sentinel exits, reactively reviving Antigravity even if the prior turn halted on error.
+   - Upon clean completion of the workflow, terminate the sentinel via `manage_task(Action="kill", TaskId=...)`.
 <!-- pilotfish-agy:end -->
