@@ -1,7 +1,7 @@
 {
   "name": "pilotfish-agy",
   "displayName": "Pilotfish for Antigravity",
-  "version": "1.5.0-agy.3",
+  "version": "1.5.0-agy.4",
   "description": "Multi-model orchestration policy and 7 specialized leaf subagents for Antigravity: the main frontier session plans and integrates while cheaper model tiers scout, execute, and fresh-context reviewers guard quality.",
   "author": {
     "name": "liomaroliveira (Antigravity port of Nanako0129/pilotfish)",

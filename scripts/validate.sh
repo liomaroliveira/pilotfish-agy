@@ -124,6 +124,12 @@ else:
             err("hooks.json missing 'pilotfish-safety-guard' hook entry")
         elif "PreToolUse" not in hooks_data["pilotfish-safety-guard"]:
             err("hooks.json 'pilotfish-safety-guard' missing PreToolUse list")
+        else:
+            for entry in hooks_data["pilotfish-safety-guard"].get("PreToolUse", []):
+                for h in entry.get("hooks", []):
+                    cmd = str(h.get("command", ""))
+                    if "./hooks/" in cmd:
+                        err(f"hooks.json command must not use relative './hooks/' path (breaks when Antigravity runs hook from workspace CWD): {cmd!r}")
     except Exception as e:
         err(f"Invalid JSON in hooks.json: {e}")
 

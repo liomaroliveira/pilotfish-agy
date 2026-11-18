@@ -3,6 +3,15 @@
 All notable changes to `pilotfish-agy` are documented in this file.
 Versioning follows `<upstream-pilotfish-version>-agy.<port-revision>`.
 
+## [1.5.0-agy.4] - 2026-11-18
+
+### Fixed
+- **Bug #1 (`PreToolUse` hook relative path):** `plugin/hooks.json` no longer uses `./hooks/safety-guard.py` (which exited with code 2 when Antigravity executed the hook from the workspace CWD instead of the plugin directory). Now uses a portable `${ANTIGRAVITY_PLUGIN_ROOT:-${PLUGIN_ROOT:-$HOME/.gemini/config/plugins/pilotfish-agy}}/hooks/safety-guard.py` fallback, and `scripts/install.sh` rewrites `hooks.json` with the exact absolute installed path (`$TARGET_DIR/hooks/safety-guard.py`) for both `--global` and `--project` installs.
+- **Bug #2 (`PreToolUse` pass-through protocol):** `plugin/hooks/safety-guard.py` now exits 0 with **empty stdout (0 bytes)** on normal calls, invalid stdin, and `safetyGuard.enabled: false`, instead of printing `{}` (which Antigravity interpreted as `deny` with an empty reason).
+
+### Added
+- **Regression tests & validator guards:** `scripts/validate.sh` now rejects relative `./hooks/` commands in `hooks.json`; `tests/test-plugin.sh` now verifies absolute-path rewriting in `install.sh`, executes the installed hook command via `sh -c` from an unrelated CWD, and asserts literal `""` stdout for all pass-through paths.
+
 ## [1.5.0-agy.3] - 2026-11-17
 
 ### Added

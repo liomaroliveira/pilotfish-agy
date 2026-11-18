@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ./hooks/safety-guard.py",
+            "command": "python3 \"${ANTIGRAVITY_PLUGIN_ROOT:-${PLUGIN_ROOT:-$HOME/.gemini/config/plugins/pilotfish-agy}}/hooks/safety-guard.py\"",
             "timeout": 10
           }
         ]

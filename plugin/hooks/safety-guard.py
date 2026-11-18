@@ -10,8 +10,9 @@ Inspects tool calls before execution to:
    or running high-risk destructive commands (git push --force, git reset --hard,
    DROP TABLE / TRUNCATE / unguarded DELETE, broad rm -rf).
 
-Returns `{}` (pass-through) on normal calls so Antigravity's native permission policy
-remains intact. Configurable via `.agents/pilotfish.config.json` or plugin `config.json`.
+Returns empty stdout (exit 0 pass-through) on normal calls so Antigravity's native
+permission policy remains intact (Antigravity treats `{}` JSON without a decision as deny).
+Configurable via `.agents/pilotfish.config.json` or plugin `config.json`.
 """
 
 import json
@@ -159,12 +160,10 @@ def main() -> None:
         raw = sys.stdin.read()
         payload = json.loads(raw) if raw.strip() else {}
     except Exception:
-        emit({})
         return
 
     sg = load_safety_config(payload)
     if not sg.get("enabled", True):
-        emit({})
         return
 
     tc = payload.get("toolCall") or {}
@@ -228,8 +227,8 @@ def main() -> None:
                 })
                 return
 
-    # Pass-through: defer to Antigravity's native permission system
-    emit({})
+    # Pass-through: empty stdout + exit 0 defers to Antigravity's native permission system
+    return
 
 
 if __name__ == "__main__":

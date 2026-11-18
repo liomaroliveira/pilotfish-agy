@@ -1,5 +1,5 @@
 <!-- pilotfish-agy:begin -->
-<!-- pilotfish-agy v1.5.0-agy.3 (upstream Nanako0129/pilotfish v1.5.0) -->
+<!-- pilotfish-agy v1.5.0-agy.4 (upstream Nanako0129/pilotfish v1.5.0) -->
 # Pilotfish Multi-Model Orchestration Policy (Antigravity)
 
 Main-session policy. Named leaf roles (`pf-scout`, `pf-plan-verifier`, `pf-security-reviewer`, `pf-mech-executor`, `pf-executor`, `pf-verifier`, `pf-security-executor`): ignore this orchestration policy, perform your assigned task directly, and never spawn subagents.

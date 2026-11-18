@@ -27,6 +27,26 @@ fi
 bash "$ROOT_DIR/scripts/install.sh" --project "$MOCK_PROJ" >/dev/null
 bash "$ROOT_DIR/scripts/validate.sh" "$MOCK_PROJ/.agents/plugins/pilotfish-agy"
 
+# Verify install.sh rewrote hooks.json to an absolute path and executes cleanly from an unrelated CWD
+python3 - "$MOCK_PROJ/.agents/plugins/pilotfish-agy" "$TMP_DIR" <<'PY'
+import json, os, subprocess, sys
+installed_dir, unrelated_cwd = sys.argv[1], sys.argv[2]
+expected_guard = os.path.join(installed_dir, "hooks", "safety-guard.py")
+with open(os.path.join(installed_dir, "hooks.json"), "r", encoding="utf-8") as f:
+    data = json.load(f)
+cmd = data["pilotfish-safety-guard"]["PreToolUse"][0]["hooks"][0]["command"]
+assert expected_guard in cmd and "./hooks/" not in cmd, f"Expected absolute guard path in hooks.json, got: {cmd!r}"
+p = subprocess.run(
+    ["sh", "-c", cmd],
+    cwd=unrelated_cwd,
+    input=json.dumps({"toolCall": {"name": "read_file", "args": {"Path": "/repo/src/app.ts"}}}),
+    text=True,
+    capture_output=True,
+    check=True,
+)
+assert p.stdout == "", f"Expected empty stdout pass-through from unrelated CWD, got: {p.stdout!r}"
+PY
+
 sleep 1
 bash "$ROOT_DIR/scripts/install.sh" --project "$MOCK_PROJ" >/dev/null
 BACKUP_COUNT="$(find "$MOCK_PROJ/.agents/.backups" -maxdepth 1 -type d -name 'pilotfish-agy-*' | wc -l)"
@@ -71,13 +91,17 @@ def run_guard(payload, ws=None):
         check=True,
         env=env,
     )
-    return json.loads(p.stdout)
+    return {} if not p.stdout.strip() else json.loads(p.stdout)
 
-# Normal calls must pass through with {} (never weaken native permissions with "allow")
-assert run_guard({"toolCall": {"name": "read_file", "args": {"Path": "/repo/src/app.ts"}}}) == {}
-assert run_guard({"toolCall": {"name": "read_file", "args": {"Path": "/repo/.env.example"}}}) == {}
-assert run_guard({"toolCall": {"name": "run_command", "args": {"CommandLine": "rm -rf dist/"}}}) == {}
-assert run_guard({"toolCall": {"name": "run_command", "args": {"CommandLine": "npm test"}}}) == {}
+# Normal calls must pass through with empty stdout (Antigravity treats bare {} as deny)
+for sample in (
+    {"toolCall": {"name": "read_file", "args": {"Path": "/repo/src/app.ts"}}},
+    {"toolCall": {"name": "read_file", "args": {"Path": "/repo/.env.example"}}},
+    {"toolCall": {"name": "run_command", "args": {"CommandLine": "rm -rf dist/"}}},
+    {"toolCall": {"name": "run_command", "args": {"CommandLine": "npm test"}}},
+):
+    p = subprocess.run(["python3", guard], input=json.dumps(sample), text=True, capture_output=True, check=True, env=dict(os.environ, PLUGIN_ROOT=plugin_dir))
+    assert p.stdout == "", (sample, p.stdout)
 
 # Sensitive files -> force_ask
 for path in ("/repo/.env", "/repo/.env.production", "/home/u/.ssh/id_ed25519", "/repo/app/src/config.local.ts", "/repo/list.m3u8"):
@@ -107,9 +131,21 @@ for cmd in ("git push --force origin main", "git reset --hard HEAD~3", "psql -c 
     r = run_guard({"toolCall": {"name": "run_command", "args": {"CommandLine": cmd}}})
     assert r.get("decision") == "force_ask", (cmd, r)
 
-# Project override safetyGuard.enabled = false -> pass-through
-assert run_guard({"toolCall": {"name": "read_file", "args": {"Path": "/repo/.env"}}}, ws=mock_proj) == {}
-print("  safety-guard.py assertions passed (all deny, force_ask, pass-through, and override cases).")
+# Invalid JSON stdin -> empty stdout pass-through (never block on malformed payload)
+p_bad = subprocess.run(["python3", guard], input="{not-json", text=True, capture_output=True, check=True, env=dict(os.environ, PLUGIN_ROOT=plugin_dir))
+assert p_bad.stdout == "", p_bad.stdout
+
+# Project override safetyGuard.enabled = false -> empty stdout pass-through
+p_off = subprocess.run(
+    ["python3", guard],
+    input=json.dumps({"toolCall": {"name": "read_file", "args": {"Path": "/repo/.env"}}, "workspacePaths": [mock_proj], "cwd": mock_proj}),
+    text=True,
+    capture_output=True,
+    check=True,
+    env=dict(os.environ, PLUGIN_ROOT=plugin_dir),
+)
+assert p_off.stdout == "", p_off.stdout
+print("  safety-guard.py assertions passed (all deny, force_ask, empty-stdout pass-through, and override cases).")
 PY
 
 bash "$ROOT_DIR/scripts/install.sh" --project "$MOCK_PROJ" --uninstall --no-backup >/dev/null

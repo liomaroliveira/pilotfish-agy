@@ -170,6 +170,21 @@ mkdir -p "$PLUGINS_ROOT"
 TMP_TARGET="${TARGET_DIR}.installing.$$"
 rm -rf "$TMP_TARGET"
 cp -Rp "$SOURCE_DIR" "$TMP_TARGET"
+if [[ -f "$TMP_TARGET/hooks.json" ]]; then
+  python3 - "$TMP_TARGET/hooks.json" "$TARGET_DIR/hooks/safety-guard.py" <<'PY'
+import json, sys
+hooks_path, guard_abs = sys.argv[1], sys.argv[2]
+with open(hooks_path, "r", encoding="utf-8") as f:
+    data = json.load(f)
+for entry in data.get("pilotfish-safety-guard", {}).get("PreToolUse", []):
+    for h in entry.get("hooks", []):
+        if isinstance(h, dict) and "safety-guard.py" in str(h.get("command", "")):
+            h["command"] = f'python3 "{guard_abs}"'
+with open(hooks_path, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+PY
+fi
 rm -rf "$TARGET_DIR"
 mv "$TMP_TARGET" "$TARGET_DIR"
 

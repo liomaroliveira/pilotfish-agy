@@ -86,13 +86,11 @@ cat > "$RELEASE_DIR/RELEASE-NOTES.md" <<EOF
 - **Upstream base:** [Nanako0129/pilotfish](https://github.com/Nanako0129/pilotfish) \`v1.5.0\` (MIT)
 
 ## Highlights in v${VERSION}
-- **Deterministic \`PreToolUse\` Safety Guard (\`hooks.json\` + \`hooks/safety-guard.py\`):**
-  - Hard-blocks (\`deny\`) hardcoded API keys/private keys in \`write_file\` / \`edit_file\`, secret egress in \`search_web\`, and catastrophic destructive commands (\`rm -rf /\`, \`mkfs\`, raw \`dd\`).
-  - Forces explicit user confirmation (\`force_ask\`) before accessing sensitive credential files (\`.env\`, \`*.pem\`, \`*.key\`, \`~/.ssh/id_*\`, \`config.local.ts\`, \`*.m3u*\`) or running high-risk destructive commands (\`git push --force\`, \`git reset --hard\`, \`DROP TABLE\`/\`TRUNCATE\`, broad \`rm -rf\`).
-  - Configurable via \`safetyGuard.enabled\` in \`config.json\` / \`.agents/pilotfish.config.json\` / \`scripts/configure.sh --safety-guard on|off\`.
-- **Long-Run Quota Exhaustion Auto-Checkpoint + Auto-Resume (\`autoResumeOnQuotaReset: true\`):**
-  - When all eligible pools hit \`<= quotaFloorPercent\` during long runs, leaves \`swarm\` workers safely in \`waiting\` (zero cost), saves \`pilotfish-checkpoint.md\`, and schedules automatic wakeup via \`schedule(DurationSeconds=quota_resets + 60)\`.
-- **Includes all \`v1.5.0-agy.2\` features:** live \`swarm(action="models", all=true)\` discovery, adaptive 3-tier grouping, configurable Hybrid Gemini ↔ Claude ↔ GPT cross-pool routing, project-specialist precedence, and full Antigravity native ecosystem integration.
+- **Critical \`PreToolUse\` Safety Guard Fixes (regression-tested):**
+  - **Portable + absolute hook path resolution:** \`plugin/hooks.json\` replaces \`./hooks/safety-guard.py\` with \`\${ANTIGRAVITY_PLUGIN_ROOT:-\${PLUGIN_ROOT:-\$HOME/.gemini/config/plugins/pilotfish-agy}}/hooks/safety-guard.py\`, and \`scripts/install.sh\` writes the exact absolute path (\`\$TARGET_DIR/hooks/safety-guard.py\`) on both \`--global\` and \`--project\` installs so hooks work under any workspace CWD.
+  - **Antigravity \`PreToolUse\` pass-through protocol fix:** \`hooks/safety-guard.py\` now returns **empty stdout (0 bytes, exit 0)** on normal calls (instead of \`{}\`, which Antigravity treated as a silent \`deny\`).
+  - **Regression coverage:** \`validate.sh\` rejects relative \`./hooks/\` commands and \`tests/test-plugin.sh\` executes the installed \`hooks.json\` command from an unrelated CWD and asserts literal empty stdout on every pass-through case.
+- **Includes all \`v1.5.0-agy.3\` & \`v1.5.0-agy.2\` features:** deterministic \`PreToolUse\` safety guard (\`deny\` on hardcoded secrets/egress/catastrophic shell, \`force_ask\` on sensitive files & destructive commands), long-run quota auto-checkpoint + auto-resume via \`schedule\`, live \`swarm(action="models", all=true)\` discovery, adaptive 3-tier grouping, configurable Hybrid Gemini ↔ Claude ↔ GPT cross-pool routing, and project-specialist precedence.
 
 ## Artifacts
 
