@@ -1,0 +1,42 @@
+{
+  "routingMode": "hybrid",
+  "crossPoolRouting": true,
+  "quotaFloorPercent": 15,
+  "preferredPoolOrder": [
+    "gemini",
+    "claude",
+    "gpt"
+  ],
+  "protectModels": [
+    "argon",
+    "claude-opus"
+  ],
+  "projectAgentPrecedence": true,
+  "autoResumeOnQuotaReset": true,
+  "resumeBufferSeconds": 60,
+  "networkGuard": {
+    "enabled": true,
+    "probeTimeoutSeconds": 2,
+    "consecutiveSuccessesRequired": 3,
+    "probeIntervalSeconds": 5,
+    "sentinelEnabled": true,
+    "endpoints": [
+      "1.1.1.1:53",
+      "8.8.8.8:53",
+      "9.9.9.9:53"
+    ]
+  },
+  "safetyGuard": {
+    "enabled": true,
+    "blockHardcodedSecrets": true,
+    "blockSecretWebEgress": true,
+    "protectSensitiveFiles": true,
+    "confirmDestructiveCommands": true
+  },
+  "nativeTools": {
+    "useSwarmForExactThinking": true,
+    "useWorkflowForFanOut": true,
+    "useResearchSandbox": true,
+    "useBrowserAgent": true
+  }
+}

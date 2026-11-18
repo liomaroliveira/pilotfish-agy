@@ -72,3 +72,9 @@ Filter out models with `quota_remaining <= quotaFloorPercent` and protect `prote
 - Integrate any `Workspace: "share"` branches before completing.
 - Disposition `pf-verifier` findings explicitly (`FIX` / `DEFER` / `REJECT`).
 - Report outcomes, verification evidence, active routing/quota decisions, and any deferred/paused items.
+
+## Project Templates & Guards (`examples/`)
+
+When setting up Pilotfish in a new repository, inspect `~/.gemini/config/plugins/pilotfish-agy/examples/README.md`:
+- `examples/project-pilotfish.config.json`: template for `<workspace>/.agents/pilotfish.config.json` (protects `argon` and `claude-opus` from routine dispatch, sets `quotaFloorPercent: 15`, enables `networkGuard` and `autoResumeOnQuotaReset`).
+- `examples/swarm-hook-guard.py`: `PreToolUse` hook template that blocks `swarm(action="add")` without an explicit `model` and prevents light/continuous workers from burning scarce quotas.
