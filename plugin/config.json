@@ -1,0 +1,20 @@
+{
+  "routingMode": "hybrid",
+  "crossPoolRouting": true,
+  "quotaFloorPercent": 10,
+  "preferredPoolOrder": [
+    "gemini",
+    "claude",
+    "gpt"
+  ],
+  "protectModels": [
+    "argon"
+  ],
+  "projectAgentPrecedence": true,
+  "nativeTools": {
+    "useSwarmForExactThinking": true,
+    "useWorkflowForFanOut": true,
+    "useResearchSandbox": true,
+    "useBrowserAgent": true
+  }
+}

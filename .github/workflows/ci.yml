@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate, build, and test plugin
+        run: |
+          chmod +x scripts/*.sh tests/*.sh
+          make validate
+          make build
+          make test

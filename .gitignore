@@ -1,0 +1,10 @@
+# Generated build & release artifacts (published via GitHub Releases)
+dist/
+
+# Temporary test directories
+.tmp/
+*.tmp
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db

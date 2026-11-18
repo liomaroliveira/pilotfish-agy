@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Pilotfish for Antigravity">
+  <defs>
+    <linearGradient id="pf-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="pf-fish" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square badge with >=10% outer margin -->
+  <rect x="24" y="24" width="208" height="208" rx="44" fill="url(#pf-bg)" stroke="#38bdf8" stroke-width="6"/>
+  <!-- Stylized pilotfish body -->
+  <path d="M 68 128 C 90 86, 148 80, 188 128 C 148 176, 90 170, 68 128 Z" fill="url(#pf-fish)"/>
+  <!-- Tail fin -->
+  <path d="M 74 128 L 48 100 L 56 128 L 48 156 Z" fill="#38bdf8"/>
+  <!-- Stripes (pilotfish signature bands) -->
+  <path d="M 110 96 C 104 116, 104 140, 110 160" stroke="#0f172a" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M 134 94 C 128 116, 128 140, 134 162" stroke="#0f172a" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M 156 102 C 151 118, 151 138, 156 154" stroke="#0f172a" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <!-- Eye -->
+  <circle cx="168" cy="122" r="6" fill="#f8fafc"/>
+  <circle cx="170" cy="122" r="2.5" fill="#0f172a"/>
+  <!-- Three tier dots (flash_lite, flash, pro) -->
+  <circle cx="102" cy="196" r="6" fill="#38bdf8"/>
+  <circle cx="128" cy="196" r="7" fill="#818cf8"/>
+  <circle cx="154" cy="196" r="8" fill="#f59e0b"/>
+</svg>

@@ -1,0 +1,18 @@
+{
+  "name": "pilotfish-agy",
+  "displayName": "Pilotfish for Antigravity",
+  "version": "1.5.0-agy.2",
+  "description": "Multi-model orchestration policy and 7 specialized leaf subagents for Antigravity: the main frontier session plans and integrates while cheaper model tiers scout, execute, and fresh-context reviewers guard quality.",
+  "author": {
+    "name": "liomaroliveira (Antigravity port of Nanako0129/pilotfish)",
+    "url": "https://github.com/liomaroliveira/pilotfish-agy"
+  },
+  "homepage": "https://github.com/liomaroliveira/pilotfish-agy",
+  "repository": "https://github.com/liomaroliveira/pilotfish-agy",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Use pilotfish to map this repository and draft a phased plan before editing",
+    "Run a pilotfish security review and plan verification on my proposed auth change",
+    "Delegate this mechanical multi-file refactor via pilotfish and verify the result"
+  ]
+}
