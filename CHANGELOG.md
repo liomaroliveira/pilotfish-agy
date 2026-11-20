@@ -3,6 +3,15 @@
 All notable changes to `pilotfish-agy` are documented in this file.
 Versioning follows `<upstream-pilotfish-version>-agy.<port-revision>`.
 
+## [1.5.0-agy.7] - 2026-11-19
+
+### Added
+- **Deterministic `invoke_subagent` guard in `plugin/examples/swarm-hook-guard.py`:**
+  - Enforces explicit `Model` on every `invoke_subagent` call (preventing the default `"inherit"` from silently burning `Argon`/`Opus` orchestrator quota on Tier 1/Tier 2 subagents).
+  - Enforces `projectAgentPrecedence` (`explore` over `pf-scout`) and blocks `Model="pro"` on light/mechanical roles.
+- **Turn-1 Context Slimming (`plugin/rules/AGENTS.md`):**
+  - Compacted `plugin/rules/AGENTS.md` by ~44% (from 19.8 KB to 11.1 KB, saving ~2,400 tokens on every Turn 1 across all Antigravity sessions) while preserving all 7 policy sections, tables, and invariants.
+
 ## [1.5.0-agy.6] - 2026-11-18
 
 ### Added
